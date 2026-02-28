@@ -99,7 +99,10 @@ namespace AndanteTribe.Unity.Extensions.Tests
             }
             finally
             {
-                UnityEngine.Object.Destroy(parent.gameObject);
+                if (parent != null)
+                {
+                    UnityEngine.Object.Destroy(parent.gameObject);
+                }
             }
         });
 
@@ -121,13 +124,16 @@ namespace AndanteTribe.Unity.Extensions.Tests
                 Assert.That(instantiatedComponent.gameObject, Is.Not.Null);
                 Assert.That(instantiatedComponent.transform.parent, Is.EqualTo(parent));
                 Assert.That(_registry.Count, Is.EqualTo(1));
-                
+
                 // Cleanup instantiated object
                 UnityEngine.Object.Destroy(instantiatedComponent.gameObject);
             }
             finally
             {
-                UnityEngine.Object.Destroy(parent.gameObject);
+                if (parent != null)
+                {
+                    UnityEngine.Object.Destroy(parent.gameObject);
+                }
             }
         });
 
@@ -159,7 +165,10 @@ namespace AndanteTribe.Unity.Extensions.Tests
             }
             finally
             {
-                UnityEngine.Object.Destroy(parent.gameObject);
+                if (parent != null)
+                {
+                    UnityEngine.Object.Destroy(parent.gameObject);
+                }
             }
         });
 
@@ -244,7 +253,10 @@ namespace AndanteTribe.Unity.Extensions.Tests
             }
             finally
             {
-                UnityEngine.Object.Destroy(parent.gameObject);
+                if (parent != null)
+                {
+                    UnityEngine.Object.Destroy(parent.gameObject);
+                }
             }
         });
 
@@ -273,7 +285,10 @@ namespace AndanteTribe.Unity.Extensions.Tests
             }
             finally
             {
-                UnityEngine.Object.Destroy(parent.gameObject);
+                if (parent != null)
+                {
+                    UnityEngine.Object.Destroy(parent.gameObject);
+                }
             }
         });
 
@@ -357,14 +372,17 @@ namespace AndanteTribe.Unity.Extensions.Tests
                 // Note: Addressables caches handles internally, so multiple loads of the same asset
                 // return only one handle per Addressables loading session
                 Assert.That(_registry.Count, Is.EqualTo(1));
-                
+
                 // Cleanup
                 UnityEngine.Object.Destroy(instance1.gameObject);
                 UnityEngine.Object.Destroy(instance2.gameObject);
             }
             finally
             {
-                UnityEngine.Object.Destroy(parent.gameObject);
+                if (parent != null)
+                {
+                    UnityEngine.Object.Destroy(parent.gameObject);
+                }
             }
         });
 
