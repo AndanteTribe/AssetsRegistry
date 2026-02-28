@@ -16,7 +16,7 @@ namespace AndanteTribe.Unity.Extensions
     /// <code>
     /// <![CDATA[
     /// using System.Threading;
-    /// using AndanteTribe.Utils.Unity.Addressable;
+    /// using AndanteTribe.Unity.Extensions;
     /// using Cysharp.Threading.Tasks;
     /// using UnityEngine;
     ///
@@ -61,8 +61,9 @@ namespace AndanteTribe.Unity.Extensions
         {
             cancellationToken.ThrowIfCancellationRequested();
             var handle = Addressables.LoadAssetAsync<TObject>(address);
+            var result = await handle.ToUniTask(cancellationToken: cancellationToken, autoReleaseWhenCanceled: true);
             _handles.Add(handle);
-            return await handle.ToUniTask(cancellationToken: cancellationToken, autoReleaseWhenCanceled: true);
+            return result;
         }
 
         /// <summary>
@@ -76,8 +77,9 @@ namespace AndanteTribe.Unity.Extensions
         {
             cancellationToken.ThrowIfCancellationRequested();
             var handle = Addressables.LoadAssetAsync<TObject>(reference);
+            var result = await handle.ToUniTask(cancellationToken: cancellationToken, autoReleaseWhenCanceled: true);
             _handles.Add(handle);
-            return await handle.ToUniTask(cancellationToken: cancellationToken, autoReleaseWhenCanceled: true);
+            return result;
         }
 
         /// <summary>
@@ -96,8 +98,8 @@ namespace AndanteTribe.Unity.Extensions
         {
             cancellationToken.ThrowIfCancellationRequested();
             var handle = Addressables.LoadAssetAsync<GameObject>(address);
-            _handles.Add(handle);
             var obj = await handle.ToUniTask(cancellationToken: cancellationToken, autoReleaseWhenCanceled: true);
+            _handles.Add(handle);
             if (!obj.TryGetComponent<TComponent>(out var component))
             {
                 _handles.Remove(handle);
@@ -131,8 +133,8 @@ namespace AndanteTribe.Unity.Extensions
         {
             cancellationToken.ThrowIfCancellationRequested();
             var handle = Addressables.LoadAssetAsync<GameObject>(reference);
-            _handles.Add(handle);
             var obj = await handle.ToUniTask(cancellationToken: cancellationToken, autoReleaseWhenCanceled: true);
+            _handles.Add(handle);
             if (!obj.TryGetComponent<TComponent>(out var component))
             {
                 _handles.Remove(handle);
