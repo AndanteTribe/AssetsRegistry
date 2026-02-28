@@ -8,8 +8,8 @@ on:
     branches:
       - main
     paths:
-      - src/Utils.Unity/Assets/**
-      - src/Utils.Unity/Packages/**
+      - src/AssetsRegistry.Unity/Assets/**
+      - src/AssetsRegistry.Unity/Packages/**
   workflow_dispatch: {}
 
 jobs:
@@ -24,4 +24,4 @@ jobs:
       - name: Unity meta files check (github-hosted ubuntu-latest)
         uses: DeNA/unity-meta-check@v4
         with:
-          target_path: src/Utils.Unity
+          target_path: src/AssetsRegistry.Unity
