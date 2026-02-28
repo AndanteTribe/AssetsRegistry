@@ -8,15 +8,15 @@ namespace AndanteTribe.Unity.Extensions.Tests
     public class DummyAddressData : ScriptableObject
     {
         [SerializeField]
-        private AssetReferenceT<GameObject> prefabReference;
+        private AssetReferenceT<GameObject> _prefabReference;
         
         [SerializeField]
-        private AssetReferenceT<Material> materialReference;
+        private AssetReferenceT<Material> _materialReference;
 
-        public AssetReferenceT<GameObject> PrefabReference => prefabReference;
-        public string PrefabAddress => prefabReference.RuntimeKey.ToString();
-        public AssetReferenceT<Material> MaterialReference => materialReference;
-        public string MaterialAddress => materialReference.RuntimeKey.ToString();
+        public AssetReferenceT<GameObject> PrefabReference => _prefabReference;
+        public string PrefabAddress => _prefabReference.RuntimeKey.ToString();
+        public AssetReferenceT<Material> MaterialReference => _materialReference;
+        public string MaterialAddress => _materialReference.RuntimeKey.ToString();
 
         public static DummyAddressData Load()
         {

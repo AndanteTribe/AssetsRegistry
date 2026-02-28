@@ -12,12 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1cbe2c27f9474ba78dcefbc1bce43491, type: 3}
   m_Name: DummyData
   m_EditorClassIdentifier: 
-  prefabReference:
+  _prefabReference:
     m_AssetGUID: 04cce3e98f1db5e408101d3af39d20e0
     m_SubObjectName: 
     m_SubObjectType: 
     m_EditorAssetChanged: 0
-  materialReference:
+  _materialReference:
     m_AssetGUID: c1babf113d370ee468b258214dbf3b4d
     m_SubObjectName: 
     m_SubObjectType: 
