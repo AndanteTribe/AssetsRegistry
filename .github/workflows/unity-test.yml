@@ -26,9 +26,10 @@ jobs:
             nuget-packages-path: src/AssetsRegistry.Unity/Packages/nuget-packages
         - name: Free disk space
           run: |
-            chmod +x ./.github/workflows/scripts/free_disk_space.sh
-            .github/workflows/scripts/free_disk_space.sh
-            git checkout -- ./.github/workflows/scripts/free_disk_space.sh
+            curl -sL https://raw.githubusercontent.com/game-ci/docker/main/.github/workflows/scripts/free_disk_space.sh -o free_disk_space.sh
+            chmod +x free_disk_space.sh
+            ./free_disk_space.sh
+            rm -f free_disk_space.sh
         - uses: game-ci/unity-test-runner@v4
           id: tests
           env:
