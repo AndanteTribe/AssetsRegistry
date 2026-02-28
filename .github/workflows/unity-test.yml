@@ -1,0 +1,62 @@
+name: unity-test
+on:
+  pull_request_target:
+    types:
+      - labeled
+  push:
+    branches:
+    - main
+    paths:
+    - src/**
+  workflow_dispatch: {}
+
+jobs:
+  test:
+      runs-on: ubuntu-latest
+      if: ${{ github.event_name == 'pull_request_target' && github.event.label.name == 'request-ci' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            ref: ${{ github.event.pull_request.head.sha || github.sha }}
+        - name: Unity Cache
+          uses: AndanteTribe/Actions/actions/unity-cache@main
+          with:
+            unity-project-path: src/AssetsRegistry.Unity
+            use-nugetforunity: true
+            nuget-packages-path: src/AssetsRegistry.Unity/Packages/nuget-packages
+        - name: Free disk space
+          run: |
+            chmod +x ./.github/workflows/scripts/free_disk_space.sh
+            .github/workflows/scripts/free_disk_space.sh
+            git checkout -- ./.github/workflows/scripts/free_disk_space.sh
+        - uses: game-ci/unity-test-runner@v4
+          id: tests
+          env:
+            UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+            UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+            UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          with:
+            projectPath: src/AssetsRegistry.Unity
+            githubToken: ${{ secrets.GITHUB_TOKEN }}
+            unityVersion: auto
+            testMode: editmode
+            coverageOptions: 'generateHtmlReport;generateAdditionalReports;assemblyFilters:+AssetsRegistry.Tests'
+        - uses: actions/upload-artifact@v4
+          if: always()
+          with:
+            name: Test results
+            path: artifacts
+            retention-days: 2
+        - uses: actions/upload-artifact@v4
+          if: always()
+          with:
+            name: Coverage Results
+            path: CodeCoverage
+            retention-days: 2
+        - name: Upload Coverage Report
+          run: |
+            for file in CodeCoverage/**/Summary.md; do
+              if [ -f "$file" ]; then
+                cat "$file" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
