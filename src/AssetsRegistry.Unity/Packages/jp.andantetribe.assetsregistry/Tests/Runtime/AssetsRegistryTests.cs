@@ -95,14 +95,11 @@ namespace AndanteTribe.Unity.Extensions.Tests
                 Assert.That(_registry.Count, Is.EqualTo(1));
 
                 // Cleanup instantiated object
-                UnityEngine.Object.Destroy(instantiatedComponent.gameObject);
+                CleanupGameObject(instantiatedComponent.gameObject);
             }
             finally
             {
-                if (parent != null)
-                {
-                    UnityEngine.Object.Destroy(parent.gameObject);
-                }
+                CleanupGameObject(parent.gameObject);
             }
         });
 
@@ -126,14 +123,11 @@ namespace AndanteTribe.Unity.Extensions.Tests
                 Assert.That(_registry.Count, Is.EqualTo(1));
 
                 // Cleanup instantiated object
-                UnityEngine.Object.Destroy(instantiatedComponent.gameObject);
+                CleanupGameObject(instantiatedComponent.gameObject);
             }
             finally
             {
-                if (parent != null)
-                {
-                    UnityEngine.Object.Destroy(parent.gameObject);
-                }
+                CleanupGameObject(parent.gameObject);
             }
         });
 
@@ -165,10 +159,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
             }
             finally
             {
-                if (parent != null)
-                {
-                    UnityEngine.Object.Destroy(parent.gameObject);
-                }
+                CleanupGameObject(parent.gameObject);
             }
         });
 
@@ -253,10 +244,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
             }
             finally
             {
-                if (parent != null)
-                {
-                    UnityEngine.Object.Destroy(parent.gameObject);
-                }
+                CleanupGameObject(parent.gameObject);
             }
         });
 
@@ -285,10 +273,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
             }
             finally
             {
-                if (parent != null)
-                {
-                    UnityEngine.Object.Destroy(parent.gameObject);
-                }
+                CleanupGameObject(parent.gameObject);
             }
         });
 
@@ -374,15 +359,12 @@ namespace AndanteTribe.Unity.Extensions.Tests
                 Assert.That(_registry.Count, Is.EqualTo(1));
 
                 // Cleanup
-                UnityEngine.Object.Destroy(instance1.gameObject);
-                UnityEngine.Object.Destroy(instance2.gameObject);
+                CleanupGameObject(instance1.gameObject);
+                CleanupGameObject(instance2.gameObject);
             }
             finally
             {
-                if (parent != null)
-                {
-                    UnityEngine.Object.Destroy(parent.gameObject);
-                }
+                CleanupGameObject(parent.gameObject);
             }
         });
 
@@ -398,8 +380,16 @@ namespace AndanteTribe.Unity.Extensions.Tests
             var loadedObject = await _registry.LoadAsync<GameObject>(_dummyData.PrefabAddress, cts.Token);
 
             // Assert
-            Assert.That(loadedObject, Is.Not.Null);
+            Assert.IsNotNull(loadedObject);
             Assert.That(_registry.Count, Is.EqualTo(1));
         });
+
+        private static void CleanupGameObject(GameObject obj)
+        {
+            if (obj != null)
+            {
+                UnityEngine.Object.DestroyImmediate(obj);
+            }
+        }
     }
 }
