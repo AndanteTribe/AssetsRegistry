@@ -56,23 +56,14 @@ public class AssetsRegistrySample : MonoBehaviour
 
 ## API
 
-### `LoadAsync<TObject>(string address, CancellationToken cancellationToken)`
-Addressables のアドレス文字列を指定してアセットを非同期でロードし、ハンドルをキャッシュします。
-
-### `LoadAsync<TObject>(AssetReferenceT<TObject> reference, CancellationToken cancellationToken)`
-`AssetReferenceT` を指定してアセットを非同期でロードし、ハンドルをキャッシュします。
-
-### `InstantiateAsync<TComponent>(string address, Transform parent, CancellationToken cancellationToken)`
-アドレス文字列からプレハブをロードし、インスタンス化して指定のコンポーネントを返します。ハンドルはキャッシュされます。
-
-### `InstantiateAsync<TComponent>(AssetReferenceT<GameObject> reference, Transform parent, CancellationToken cancellationToken)`
-`AssetReferenceT` からプレハブをロードし、インスタンス化して指定のコンポーネントを返します。ハンドルはキャッシュされます。
-
-### `Clear()`
-キャッシュされたすべてのアセットハンドルを解放し、レジストリをクリアします。
-
-### `Dispose()`
-`Clear()` と同等です。キャッシュされたすべてのアセットハンドルを解放します。
+| メソッド | 説明 |
+|--------|------|
+| `LoadAsync<TObject>(string address, CancellationToken cancellationToken)` | Addressables のアドレス文字列を指定してアセットを非同期でロードし、ハンドルをキャッシュします。 |
+| `LoadAsync<TObject>(AssetReferenceT<TObject> reference, CancellationToken cancellationToken)` | `AssetReferenceT` を指定してアセットを非同期でロードし、ハンドルをキャッシュします。 |
+| `InstantiateAsync<TComponent>(string address, Transform parent, CancellationToken cancellationToken)` | アドレス文字列からプレハブをロードし、インスタンス化して指定のコンポーネントを返します。ハンドルはキャッシュされます。 |
+| `InstantiateAsync<TComponent>(AssetReferenceT<GameObject> reference, Transform parent, CancellationToken cancellationToken)` | `AssetReferenceT` からプレハブをロードし、インスタンス化して指定のコンポーネントを返します。ハンドルはキャッシュされます。 |
+| `Clear()` | キャッシュされたすべてのアセットハンドルを解放し、レジストリをクリアします。 |
+| `Dispose()` | `Clear()` と同等です。キャッシュされたすべてのアセットハンドルを解放します。 |
 
 ## ライセンス
 このライブラリは、MITライセンスで公開しています。

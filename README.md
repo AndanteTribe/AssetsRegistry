@@ -56,23 +56,14 @@ public class AssetsRegistrySample : MonoBehaviour
 
 ## API
 
-### `LoadAsync<TObject>(string address, CancellationToken cancellationToken)`
-Loads an asset asynchronously by its Addressables address string and caches the handle.
-
-### `LoadAsync<TObject>(AssetReferenceT<TObject> reference, CancellationToken cancellationToken)`
-Loads an asset asynchronously by its `AssetReferenceT` and caches the handle.
-
-### `InstantiateAsync<TComponent>(string address, Transform parent, CancellationToken cancellationToken)`
-Loads a prefab by address string, instantiates it, and returns the specified component. The handle is cached.
-
-### `InstantiateAsync<TComponent>(AssetReferenceT<GameObject> reference, Transform parent, CancellationToken cancellationToken)`
-Loads a prefab by `AssetReferenceT`, instantiates it, and returns the specified component. The handle is cached.
-
-### `Clear()`
-Releases all cached asset handles and clears the registry.
-
-### `Dispose()`
-Equivalent to `Clear()`. Releases all cached asset handles.
+| Method | Description |
+|--------|-------------|
+| `LoadAsync<TObject>(string address, CancellationToken cancellationToken)` | Loads an asset asynchronously by its Addressables address string and caches the handle. |
+| `LoadAsync<TObject>(AssetReferenceT<TObject> reference, CancellationToken cancellationToken)` | Loads an asset asynchronously by its `AssetReferenceT` and caches the handle. |
+| `InstantiateAsync<TComponent>(string address, Transform parent, CancellationToken cancellationToken)` | Loads a prefab by address string, instantiates it, and returns the specified component. The handle is cached. |
+| `InstantiateAsync<TComponent>(AssetReferenceT<GameObject> reference, Transform parent, CancellationToken cancellationToken)` | Loads a prefab by `AssetReferenceT`, instantiates it, and returns the specified component. The handle is cached. |
+| `Clear()` | Releases all cached asset handles and clears the registry. |
+| `Dispose()` | Equivalent to `Clear()`. Releases all cached asset handles. |
 
 ## License
 This library is released under the MIT license.
