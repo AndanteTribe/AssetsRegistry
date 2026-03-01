@@ -22,8 +22,6 @@ jobs:
           uses: AndanteTribe/Actions/actions/unity-cache@main
           with:
             unity-project-path: src/AssetsRegistry.Unity
-            use-nugetforunity: true
-            nuget-packages-path: src/AssetsRegistry.Unity/Packages/nuget-packages
         - name: Free disk space
           run: |
             curl -sL https://raw.githubusercontent.com/game-ci/docker/main/.github/workflows/scripts/free_disk_space.sh -o free_disk_space.sh
