@@ -1,4 +1,6 @@
-﻿using System;
+﻿#nullable enable
+
+using System;
 using System.Collections;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -13,8 +15,8 @@ namespace AndanteTribe.Unity.Extensions.Tests
     /// </summary>
     public class AssetsRegistryTests
     {
-        private AssetsRegistry _registry;
-        private DummyAddressData _dummyData;
+        private AssetsRegistry _registry = null!;
+        private DummyAddressData _dummyData = null!;
 
         [SetUp]
         public void SetUp()
@@ -24,11 +26,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         }
 
         [TearDown]
-        public void TearDown()
-        {
-            _registry?.Dispose();
-            _registry = null;
-        }
+        public void TearDown() => _registry.Dispose();
 
         [UnityTest]
         public IEnumerator LoadAsync_WithStringAddress_LoadsGameObject() => UniTask.ToCoroutine(async () =>
