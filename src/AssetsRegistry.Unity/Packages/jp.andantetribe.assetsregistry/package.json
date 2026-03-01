@@ -10,7 +10,7 @@
   "description": "Unity Addressables utility for temporarily caching asset handles during usage.",
   "license": "MIT",
   "dependencies": {
-    "com.unity.addressables": "1.19.19",
+    "com.unity.addressables": "1.21.21",
     "com.cysharp.unitask": "2.5.10"
   }
 }
