@@ -41,23 +41,21 @@ jobs:
             githubToken: ${{ secrets.GITHUB_TOKEN }}
             unityVersion: auto
             testMode: playMode
-            coverageOptions: 'generateHtmlReport;generateAdditionalReports;assemblyFilters:+AssetsRegistry.Tests'
+            coverageOptions: 'generateHtmlReport;generateAdditionalReports;assemblyFilters:+AssetsRegistry.Runtime'
         - uses: actions/upload-artifact@v4
           if: always()
           with:
             name: Test results
-            path: artifacts
+            path: ${{ steps.tests.outputs.artifactsPath }}
             retention-days: 2
         - uses: actions/upload-artifact@v4
           if: always()
           with:
             name: Coverage Results
-            path: CodeCoverage
+            path: ${{ steps.tests.outputs.coveragePath }}
             retention-days: 2
         - name: Upload Coverage Report
           run: |
-            for file in CodeCoverage/**/Summary.md; do
-              if [ -f "$file" ]; then
-                cat "$file" >> $GITHUB_STEP_SUMMARY
-              fi
-            done
+            while IFS= read -r file; do
+              cat "$file" >> $GITHUB_STEP_SUMMARY
+            done < <(find "${{ steps.tests.outputs.coveragePath }}" -name "Summary.md" 2>/dev/null)
