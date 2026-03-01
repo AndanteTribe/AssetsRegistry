@@ -2,6 +2,7 @@
 [![unity-test](https://github.com/AndanteTribe/AssetsRegistry/actions/workflows/unity-test.yml/badge.svg)](https://github.com/AndanteTribe/AssetsRegistry/actions/workflows/unity-test.yml)
 [![Releases](https://img.shields.io/github/release/AndanteTribe/AssetsRegistry.svg)](https://github.com/AndanteTribe/AssetsRegistry/releases)
 [![GitHub license](https://img.shields.io/github/license/AndanteTribe/AssetsRegistry.svg)](./LICENSE)
+[![openupm](https://img.shields.io/npm/v/jp.andantetribe.assetsregistry?label=openupm&registry_uri=https://package.openupm.com)](https://openupm.com/packages/jp.andantetribe.assetsregistry/)
 
 English | [日本語](README_JA.md)
 
