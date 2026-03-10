@@ -39,7 +39,7 @@ jobs:
             githubToken: ${{ secrets.GITHUB_TOKEN }}
             unityVersion: auto
             testMode: playMode
-            coverageOptions: 'generateHtmlReport;generateAdditionalReports;assemblyFilters:+AssetsRegistry.Runtime'
+            coverageOptions: 'generateHtmlReport;generateAdditionalReports;assemblyFilters:+AssetsRegistry'
         - uses: actions/upload-artifact@v4
           if: always()
           with:
