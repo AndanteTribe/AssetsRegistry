@@ -77,7 +77,7 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.unity.addressables": "1.19.19",
+        "com.unity.addressables": "1.21.21",
         "com.cysharp.unitask": "2.5.10"
       }
     },

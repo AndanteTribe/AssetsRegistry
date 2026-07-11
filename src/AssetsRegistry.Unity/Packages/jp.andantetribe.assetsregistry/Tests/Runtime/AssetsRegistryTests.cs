@@ -1,12 +1,20 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
+using UnityEngine.AddressableAssets.ResourceLocators;
+using UnityEngine.ResourceManagement.AsyncOperations;
+using UnityEngine.ResourceManagement.ResourceLocations;
+using UnityEngine.ResourceManagement.Util;
 using UnityEngine.TestTools;
+using Object = UnityEngine.Object;
 
 namespace AndanteTribe.Unity.Extensions.Tests
 {
@@ -15,18 +23,68 @@ namespace AndanteTribe.Unity.Extensions.Tests
     /// </summary>
     public class AssetsRegistryTests
     {
+        private const string PrefabAddress = "assets-registry-tests-prefab";
+        private const string MaterialAddress = "assets-registry-tests-material";
+        private const string PrefabGuid = "04cce3e98f1db5e408101d3af39d20e0";
+        private const string MaterialGuid = "c1babf113d370ee468b258214dbf3b4d";
+
         private AssetsRegistry _registry = null!;
-        private DummyAddressData _dummyData = null!;
+        private GameObject _prefab = null!;
+        private Material _material = null!;
+        private InMemoryAssetProvider _provider = null!;
+        private ResourceLocationMap _locator = null!;
+        private FieldInfo? _addressablesInstanceField;
+        private object? _originalAddressablesInstance;
+
+        private static AssetReferenceT<GameObject> PrefabReference => new(PrefabGuid);
 
         [SetUp]
         public void SetUp()
         {
+            (_addressablesInstanceField, _originalAddressablesInstance) = PrepareAddressablesForDirectLocatorUse();
             _registry = new AssetsRegistry();
-            _dummyData = DummyAddressData.Load();
+            _prefab = new GameObject("Cube");
+            _prefab.AddComponent<BoxCollider>();
+
+            var shader = Shader.Find("Hidden/InternalErrorShader");
+            Assert.That(shader, Is.Not.Null);
+            _material = new Material(shader!) { name = "Material" };
+
+            _provider = new InMemoryAssetProvider(new Dictionary<string, Object>
+            {
+                [PrefabAddress] = _prefab,
+                [PrefabGuid] = _prefab,
+                [MaterialAddress] = _material,
+                [MaterialGuid] = _material,
+            });
+            Addressables.ResourceManager.ResourceProviders.Add(_provider);
+
+            _locator = new ResourceLocationMap("AssetsRegistryTests", capacity: 4);
+            AddLocation(PrefabAddress, _prefab);
+            AddLocation(PrefabGuid, _prefab);
+            AddLocation(MaterialAddress, _material);
+            AddLocation(MaterialGuid, _material);
+            Addressables.AddResourceLocator(_locator);
         }
 
         [TearDown]
-        public void TearDown() => _registry.Dispose();
+        public void TearDown()
+        {
+            try
+            {
+                _registry.Dispose();
+                Addressables.RemoveResourceLocator(_locator);
+                Addressables.ResourceManager.ResourceProviders.Remove(_provider);
+                CleanupGameObject(_prefab);
+                Object.DestroyImmediate(_material);
+            }
+            finally
+            {
+                _addressablesInstanceField?.SetValue(null, _originalAddressablesInstance);
+                _addressablesInstanceField = null;
+                _originalAddressablesInstance = null;
+            }
+        }
 
         [UnityTest]
         public IEnumerator LoadAsync_WithStringAddress_LoadsGameObject() => UniTask.ToCoroutine(async () =>
@@ -35,7 +93,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
             var cts = new CancellationTokenSource();
 
             // Act
-            var loadedObject = await _registry.LoadAsync<GameObject>(_dummyData.PrefabAddress, cts.Token);
+            var loadedObject = await _registry.LoadAsync<GameObject>(PrefabAddress, cts.Token);
 
             // Assert
             Assert.That(loadedObject, Is.Not.Null);
@@ -50,7 +108,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
             var cts = new CancellationTokenSource();
 
             // Act
-            var loadedMaterial = await _registry.LoadAsync<Material>(_dummyData.MaterialAddress, cts.Token);
+            var loadedMaterial = await _registry.LoadAsync<Material>(MaterialAddress, cts.Token);
 
             // Assert
             Assert.That(loadedMaterial, Is.Not.Null);
@@ -63,7 +121,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         {
             // Arrange
             var cts = new CancellationTokenSource();
-            var assetReference = _dummyData.PrefabReference;
+            var assetReference = PrefabReference;
 
             // Act
             var loadedObject = await _registry.LoadAsync(assetReference, cts.Token);
@@ -84,7 +142,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
             try
             {
                 // Act
-                var instantiatedComponent = await _registry.InstantiateAsync<BoxCollider>(_dummyData.PrefabAddress, parent, cts.Token);
+                var instantiatedComponent = await _registry.InstantiateAsync<BoxCollider>(PrefabAddress, parent, cts.Token);
 
                 // Assert
                 Assert.That(instantiatedComponent, Is.Not.Null);
@@ -107,7 +165,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
             // Arrange
             var cts = new CancellationTokenSource();
             var parent = new GameObject("TestParent").transform;
-            var assetReference = _dummyData.PrefabReference;
+            var assetReference = PrefabReference;
 
             try
             {
@@ -130,6 +188,35 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
+        public IEnumerator InstantiateAsync_WithAssetReferenceAndMissingComponent_ThrowsInvalidOperationException() => UniTask.ToCoroutine(async () =>
+        {
+            // Arrange
+            var cts = new CancellationTokenSource();
+            var parent = new GameObject("TestParent").transform;
+
+            try
+            {
+                // Act & Assert
+                var exceptionThrown = false;
+                try
+                {
+                    await _registry.InstantiateAsync<Rigidbody>(PrefabReference, parent, cts.Token);
+                }
+                catch (InvalidOperationException)
+                {
+                    exceptionThrown = true;
+                }
+
+                Assert.That(exceptionThrown, Is.True, "Expected InvalidOperationException was not thrown");
+                Assert.That(_registry.Count, Is.EqualTo(0));
+            }
+            finally
+            {
+                CleanupGameObject(parent.gameObject);
+            }
+        });
+
+        [UnityTest]
         public IEnumerator InstantiateAsync_WithMissingComponent_ThrowsInvalidOperationException() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
@@ -143,7 +230,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
                 var exceptionThrown = false;
                 try
                 {
-                    await _registry.InstantiateAsync<Rigidbody>(_dummyData.PrefabAddress, parent, cts.Token);
+                    await _registry.InstantiateAsync<Rigidbody>(PrefabAddress, parent, cts.Token);
                 }
                 catch (InvalidOperationException)
                 {
@@ -168,8 +255,8 @@ namespace AndanteTribe.Unity.Extensions.Tests
             var cts = new CancellationTokenSource();
 
             // Act
-            await _registry.LoadAsync<GameObject>(_dummyData.PrefabAddress, cts.Token);
-            await _registry.LoadAsync<Material>(_dummyData.MaterialAddress, cts.Token);
+            await _registry.LoadAsync<GameObject>(PrefabAddress, cts.Token);
+            await _registry.LoadAsync<Material>(MaterialAddress, cts.Token);
 
             // Assert
             Assert.That(_registry.Count, Is.EqualTo(2));
@@ -186,7 +273,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
             var exceptionThrown = false;
             try
             {
-                await _registry.LoadAsync<GameObject>(_dummyData.PrefabAddress, cts.Token);
+                await _registry.LoadAsync<GameObject>(PrefabAddress, cts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -206,7 +293,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
             // Act
             try
             {
-                await _registry.LoadAsync<GameObject>(_dummyData.PrefabAddress, cts.Token);
+                await _registry.LoadAsync<GameObject>(PrefabAddress, cts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -231,7 +318,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
                 var exceptionThrown = false;
                 try
                 {
-                    await _registry.InstantiateAsync<BoxCollider>(_dummyData.PrefabAddress, parent, cts.Token);
+                    await _registry.InstantiateAsync<BoxCollider>(PrefabAddress, parent, cts.Token);
                 }
                 catch (OperationCanceledException)
                 {
@@ -259,7 +346,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
                 // Act
                 try
                 {
-                    await _registry.InstantiateAsync<BoxCollider>(_dummyData.PrefabAddress, parent, cts.Token);
+                    await _registry.InstantiateAsync<BoxCollider>(PrefabAddress, parent, cts.Token);
                 }
                 catch (OperationCanceledException)
                 {
@@ -276,12 +363,72 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
+        public IEnumerator InstantiateAsync_WithStringAddressAndCancellationAfterLoad_ReleasesHandle() => UniTask.ToCoroutine(async () =>
+        {
+            // Arrange
+            var cts = new CancellationTokenSource();
+            var parent = new GameObject("TestParent").transform;
+            _provider.AfterProvide = cts.Cancel;
+
+            try
+            {
+                // Act & Assert
+                var exceptionThrown = false;
+                try
+                {
+                    await _registry.InstantiateAsync<BoxCollider>(PrefabAddress, parent, cts.Token);
+                }
+                catch (OperationCanceledException e) when (e.CancellationToken == cts.Token)
+                {
+                    exceptionThrown = true;
+                }
+
+                Assert.That(exceptionThrown, Is.True, "Expected OperationCanceledException was not thrown");
+                Assert.That(_registry.Count, Is.EqualTo(0));
+            }
+            finally
+            {
+                CleanupGameObject(parent.gameObject);
+            }
+        });
+
+        [UnityTest]
+        public IEnumerator InstantiateAsync_WithAssetReferenceAndCancellationAfterLoad_ReleasesHandle() => UniTask.ToCoroutine(async () =>
+        {
+            // Arrange
+            var cts = new CancellationTokenSource();
+            var parent = new GameObject("TestParent").transform;
+            _provider.AfterProvide = cts.Cancel;
+
+            try
+            {
+                // Act & Assert
+                var exceptionThrown = false;
+                try
+                {
+                    await _registry.InstantiateAsync<BoxCollider>(PrefabReference, parent, cts.Token);
+                }
+                catch (OperationCanceledException e) when (e.CancellationToken == cts.Token)
+                {
+                    exceptionThrown = true;
+                }
+
+                Assert.That(exceptionThrown, Is.True, "Expected OperationCanceledException was not thrown");
+                Assert.That(_registry.Count, Is.EqualTo(0));
+            }
+            finally
+            {
+                CleanupGameObject(parent.gameObject);
+            }
+        });
+
+        [UnityTest]
         public IEnumerator Clear_ReleasesAllHandles() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
-            await _registry.LoadAsync<GameObject>(_dummyData.PrefabAddress, cts.Token);
-            await _registry.LoadAsync<Material>(_dummyData.MaterialAddress, cts.Token);
+            await _registry.LoadAsync<GameObject>(PrefabAddress, cts.Token);
+            await _registry.LoadAsync<Material>(MaterialAddress, cts.Token);
             Assert.That(_registry.Count, Is.EqualTo(2));
 
             // Act
@@ -296,8 +443,8 @@ namespace AndanteTribe.Unity.Extensions.Tests
         {
             // Arrange
             var cts = new CancellationTokenSource();
-            await _registry.LoadAsync<GameObject>(_dummyData.PrefabAddress, cts.Token);
-            await _registry.LoadAsync<Material>(_dummyData.MaterialAddress, cts.Token);
+            await _registry.LoadAsync<GameObject>(PrefabAddress, cts.Token);
+            await _registry.LoadAsync<Material>(MaterialAddress, cts.Token);
             Assert.That(_registry.Count, Is.EqualTo(2));
 
             // Act
@@ -322,8 +469,8 @@ namespace AndanteTribe.Unity.Extensions.Tests
             var cts = new CancellationTokenSource();
 
             // Act
-            var obj1 = await _registry.LoadAsync<GameObject>(_dummyData.PrefabAddress, cts.Token);
-            var obj2 = await _registry.LoadAsync<GameObject>(_dummyData.PrefabAddress, cts.Token);
+            var obj1 = await _registry.LoadAsync<GameObject>(PrefabAddress, cts.Token);
+            var obj2 = await _registry.LoadAsync<GameObject>(PrefabAddress, cts.Token);
 
             // Assert
             Assert.That(obj1, Is.Not.Null);
@@ -344,8 +491,8 @@ namespace AndanteTribe.Unity.Extensions.Tests
             try
             {
                 // Act
-                var instance1 = await _registry.InstantiateAsync<BoxCollider>(_dummyData.PrefabAddress, parent, cts.Token);
-                var instance2 = await _registry.InstantiateAsync<BoxCollider>(_dummyData.PrefabAddress, parent, cts.Token);
+                var instance1 = await _registry.InstantiateAsync<BoxCollider>(PrefabAddress, parent, cts.Token);
+                var instance2 = await _registry.InstantiateAsync<BoxCollider>(PrefabAddress, parent, cts.Token);
 
                 // Assert
                 Assert.That(instance1, Is.Not.Null);
@@ -371,16 +518,49 @@ namespace AndanteTribe.Unity.Extensions.Tests
         {
             // Arrange
             var cts = new CancellationTokenSource();
-            await _registry.LoadAsync<GameObject>(_dummyData.PrefabAddress, cts.Token);
+            await _registry.LoadAsync<GameObject>(PrefabAddress, cts.Token);
             _registry.Clear();
 
             // Act
-            var loadedObject = await _registry.LoadAsync<GameObject>(_dummyData.PrefabAddress, cts.Token);
+            var loadedObject = await _registry.LoadAsync<GameObject>(PrefabAddress, cts.Token);
 
             // Assert
             Assert.IsNotNull(loadedObject);
             Assert.That(_registry.Count, Is.EqualTo(1));
         });
+
+        private void AddLocation(string key, Object asset)
+        {
+            _locator.Add(key, new ResourceLocationBase(key, key, _provider.ProviderId, asset.GetType()));
+        }
+
+        private static (FieldInfo InstanceField, object? OriginalInstance) PrepareAddressablesForDirectLocatorUse()
+        {
+            var addressablesInstanceField = GetRequiredField(
+                typeof(Addressables), "m_AddressablesInstance", BindingFlags.NonPublic | BindingFlags.Static);
+            var originalAddressablesInstance = addressablesInstanceField.GetValue(null);
+            var addressablesImplType = addressablesInstanceField.FieldType;
+            var addressablesInstance = Activator.CreateInstance(addressablesImplType, new LRUCacheAllocationStrategy(1000, 1000, 100, 10));
+            if (addressablesInstance == null)
+            {
+                throw new InvalidOperationException($"Could not create an instance of {addressablesImplType.FullName}.");
+            }
+
+            GetRequiredField(addressablesImplType, "hasStartedInitialization", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public)
+                .SetValue(addressablesInstance, true);
+            GetRequiredField(addressablesImplType, "m_InitializationOperation", BindingFlags.NonPublic | BindingFlags.Instance)
+                .SetValue(addressablesInstance, default(AsyncOperationHandle<IResourceLocator>));
+            GetRequiredField(addressablesImplType, "m_OnHandleCompleteAction", BindingFlags.NonPublic | BindingFlags.Instance)
+                .SetValue(addressablesInstance, new Action<AsyncOperationHandle>(_ => { }));
+            addressablesInstanceField.SetValue(null, addressablesInstance);
+
+            return (addressablesInstanceField, originalAddressablesInstance);
+        }
+
+        private static FieldInfo GetRequiredField(Type type, string name, BindingFlags bindingFlags)
+        {
+            return type.GetField(name, bindingFlags) ?? throw new MissingFieldException(type.FullName, name);
+        }
 
         private static void CleanupGameObject(GameObject obj)
         {
