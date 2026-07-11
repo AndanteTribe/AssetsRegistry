@@ -33,13 +33,15 @@ namespace AndanteTribe.Unity.Extensions.Tests
         private Material _material = null!;
         private InMemoryAssetProvider _provider = null!;
         private ResourceLocationMap _locator = null!;
+        private FieldInfo? _addressablesInstanceField;
+        private object? _originalAddressablesInstance;
 
         private static AssetReferenceT<GameObject> PrefabReference => new(PrefabGuid);
 
         [SetUp]
         public void SetUp()
         {
-            PrepareAddressablesForDirectLocatorUse();
+            (_addressablesInstanceField, _originalAddressablesInstance) = PrepareAddressablesForDirectLocatorUse();
             _registry = new AssetsRegistry();
             _prefab = new GameObject("Cube");
             _prefab.AddComponent<BoxCollider>();
@@ -68,11 +70,20 @@ namespace AndanteTribe.Unity.Extensions.Tests
         [TearDown]
         public void TearDown()
         {
-            _registry.Dispose();
-            Addressables.RemoveResourceLocator(_locator);
-            Addressables.ResourceManager.ResourceProviders.Remove(_provider);
-            CleanupGameObject(_prefab);
-            Object.DestroyImmediate(_material);
+            try
+            {
+                _registry.Dispose();
+                Addressables.RemoveResourceLocator(_locator);
+                Addressables.ResourceManager.ResourceProviders.Remove(_provider);
+                CleanupGameObject(_prefab);
+                Object.DestroyImmediate(_material);
+            }
+            finally
+            {
+                _addressablesInstanceField?.SetValue(null, _originalAddressablesInstance);
+                _addressablesInstanceField = null;
+                _originalAddressablesInstance = null;
+            }
         }
 
         [UnityTest]
@@ -523,18 +534,32 @@ namespace AndanteTribe.Unity.Extensions.Tests
             _locator.Add(key, new ResourceLocationBase(key, key, _provider.ProviderId, asset.GetType()));
         }
 
-        private static void PrepareAddressablesForDirectLocatorUse()
+        private static (FieldInfo InstanceField, object? OriginalInstance) PrepareAddressablesForDirectLocatorUse()
         {
-            var addressablesInstanceField = typeof(Addressables).GetField("m_AddressablesInstance", BindingFlags.NonPublic | BindingFlags.Static);
-            var addressablesImplType = addressablesInstanceField!.GetValue(null)!.GetType();
+            var addressablesInstanceField = GetRequiredField(
+                typeof(Addressables), "m_AddressablesInstance", BindingFlags.NonPublic | BindingFlags.Static);
+            var originalAddressablesInstance = addressablesInstanceField.GetValue(null);
+            var addressablesImplType = addressablesInstanceField.FieldType;
             var addressablesInstance = Activator.CreateInstance(addressablesImplType, new LRUCacheAllocationStrategy(1000, 1000, 100, 10));
-            addressablesInstanceField.SetValue(null, addressablesInstance);
-            addressablesImplType.GetField("hasStartedInitialization", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public)!
+            if (addressablesInstance == null)
+            {
+                throw new InvalidOperationException($"Could not create an instance of {addressablesImplType.FullName}.");
+            }
+
+            GetRequiredField(addressablesImplType, "hasStartedInitialization", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public)
                 .SetValue(addressablesInstance, true);
-            addressablesImplType.GetField("m_InitializationOperation", BindingFlags.NonPublic | BindingFlags.Instance)!
+            GetRequiredField(addressablesImplType, "m_InitializationOperation", BindingFlags.NonPublic | BindingFlags.Instance)
                 .SetValue(addressablesInstance, default(AsyncOperationHandle<IResourceLocator>));
-            addressablesImplType.GetField("m_OnHandleCompleteAction", BindingFlags.NonPublic | BindingFlags.Instance)!
+            GetRequiredField(addressablesImplType, "m_OnHandleCompleteAction", BindingFlags.NonPublic | BindingFlags.Instance)
                 .SetValue(addressablesInstance, new Action<AsyncOperationHandle>(_ => { }));
+            addressablesInstanceField.SetValue(null, addressablesInstance);
+
+            return (addressablesInstanceField, originalAddressablesInstance);
+        }
+
+        private static FieldInfo GetRequiredField(Type type, string name, BindingFlags bindingFlags)
+        {
+            return type.GetField(name, bindingFlags) ?? throw new MissingFieldException(type.FullName, name);
         }
 
         private static void CleanupGameObject(GameObject obj)

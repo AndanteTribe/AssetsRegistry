@@ -25,13 +25,16 @@ namespace AndanteTribe.Unity.Extensions.Tests
         private async UniTaskVoid CompleteAsync(ProvideHandle provideHandle)
         {
             await UniTask.Yield();
-            var key = provideHandle.Location.PrimaryKey;
-            if (!_assets.TryGetValue(key, out var asset))
+            var primaryKey = provideHandle.Location.PrimaryKey;
+            var internalId = provideHandle.Location.InternalId;
+            if (!_assets.TryGetValue(primaryKey, out var asset))
             {
-                _assets.TryGetValue(provideHandle.Location.InternalId, out asset);
+                _assets.TryGetValue(internalId, out asset);
             }
 
-            var exception = asset == null ? new InvalidOperationException($"No in-memory asset is registered for '{key}'.") : null;
+            var exception = asset == null
+                ? new InvalidOperationException($"No in-memory asset is registered for PrimaryKey '{primaryKey}' or InternalId '{internalId}'.")
+                : null;
             provideHandle.Complete(asset, asset != null, exception);
 
             var afterProvide = AfterProvide;
