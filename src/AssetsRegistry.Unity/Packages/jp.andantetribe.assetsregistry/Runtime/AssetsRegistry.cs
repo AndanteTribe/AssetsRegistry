@@ -48,9 +48,12 @@ namespace AndanteTribe.Unity.Extensions
     /// </example>
     public class AssetsRegistry : IDisposable
     {
-        private readonly HashSet<AsyncOperationHandle> _handles = new(AsyncOperationHandleEqualityComparer.Default);
+        private readonly Dictionary<AsyncOperationHandle, int> _handleReferenceCounts = new(AsyncOperationHandleEqualityComparer.Default);
 
-        public int Count => _handles.Count;
+        /// <summary>
+        /// The number of Addressables handles owned by this registry.
+        /// </summary>
+        public int Count => _handleReferenceCounts.Count;
 
         /// <summary>
         /// Load an asset asynchronously.
@@ -63,9 +66,23 @@ namespace AndanteTribe.Unity.Extensions
         {
             cancellationToken.ThrowIfCancellationRequested();
             var handle = Addressables.LoadAssetAsync<TObject>(address);
-            var result = await handle.ToUniTask(cancellationToken: cancellationToken, autoReleaseWhenCanceled: true);
-            _handles.Add(handle);
-            return result;
+            try
+            {
+                var result = await handle.ToUniTask(cancellationToken: cancellationToken);
+                if (!_handleReferenceCounts.TryAdd(handle, 1))
+                {
+                    _handleReferenceCounts[handle]++;
+                }
+                return result;
+            }
+            catch
+            {
+                if (handle.IsValid())
+                {
+                    Addressables.Release(handle);
+                }
+                throw;
+            }
         }
 
         /// <summary>
@@ -79,9 +96,23 @@ namespace AndanteTribe.Unity.Extensions
         {
             cancellationToken.ThrowIfCancellationRequested();
             var handle = Addressables.LoadAssetAsync<TObject>(reference);
-            var result = await handle.ToUniTask(cancellationToken: cancellationToken, autoReleaseWhenCanceled: true);
-            _handles.Add(handle);
-            return result;
+            try
+            {
+                var result = await handle.ToUniTask(cancellationToken: cancellationToken);
+                if (!_handleReferenceCounts.TryAdd(handle, 1))
+                {
+                    _handleReferenceCounts[handle]++;
+                }
+                return result;
+            }
+            catch
+            {
+                if (handle.IsValid())
+                {
+                    Addressables.Release(handle);
+                }
+                throw;
+            }
         }
 
         /// <summary>
@@ -100,23 +131,28 @@ namespace AndanteTribe.Unity.Extensions
         {
             cancellationToken.ThrowIfCancellationRequested();
             var handle = Addressables.LoadAssetAsync<GameObject>(address);
-            var obj = await handle.ToUniTask(cancellationToken: cancellationToken, autoReleaseWhenCanceled: true);
-            _handles.Add(handle);
-            if (!obj.TryGetComponent<TComponent>(out var component))
-            {
-                _handles.Remove(handle);
-                Addressables.Release(handle);
-                throw new InvalidOperationException($"Could not retrieve the specified type {typeof(TComponent)} from {handle.DebugName}.");
-            }
             try
             {
+                var obj = await handle.ToUniTask(cancellationToken: cancellationToken);
+                if (!obj.TryGetComponent<TComponent>(out var component))
+                {
+                    throw new InvalidOperationException($"Could not retrieve the specified type {typeof(TComponent)} from {handle.DebugName}.");
+                }
+
                 var result = await Object.InstantiateAsync(component, parent).WithCancellation(cancellationToken);
-                return result[0];
+                var instance = result[0];
+                if (!_handleReferenceCounts.TryAdd(handle, 1))
+                {
+                    _handleReferenceCounts[handle]++;
+                }
+                return instance;
             }
-            catch (OperationCanceledException e) when(e.CancellationToken == cancellationToken)
+            catch
             {
-                _handles.Remove(handle);
-                Addressables.Release(handle);
+                if (handle.IsValid())
+                {
+                    Addressables.Release(handle);
+                }
                 throw;
             }
         }
@@ -135,23 +171,28 @@ namespace AndanteTribe.Unity.Extensions
         {
             cancellationToken.ThrowIfCancellationRequested();
             var handle = Addressables.LoadAssetAsync<GameObject>(reference);
-            var obj = await handle.ToUniTask(cancellationToken: cancellationToken, autoReleaseWhenCanceled: true);
-            _handles.Add(handle);
-            if (!obj.TryGetComponent<TComponent>(out var component))
-            {
-                _handles.Remove(handle);
-                Addressables.Release(handle);
-                throw new InvalidOperationException($"Could not retrieve the specified type {typeof(TComponent)} from {handle.DebugName}.");
-            }
             try
             {
+                var obj = await handle.ToUniTask(cancellationToken: cancellationToken);
+                if (!obj.TryGetComponent<TComponent>(out var component))
+                {
+                    throw new InvalidOperationException($"Could not retrieve the specified type {typeof(TComponent)} from {handle.DebugName}.");
+                }
+
                 var result = await Object.InstantiateAsync(component, parent).WithCancellation(cancellationToken);
-                return result[0];
+                var instance = result[0];
+                if (!_handleReferenceCounts.TryAdd(handle, 1))
+                {
+                    _handleReferenceCounts[handle]++;
+                }
+                return instance;
             }
-            catch (OperationCanceledException e) when(e.CancellationToken == cancellationToken)
+            catch
             {
-                _handles.Remove(handle);
-                Addressables.Release(handle);
+                if (handle.IsValid())
+                {
+                    Addressables.Release(handle);
+                }
                 throw;
             }
         }
@@ -161,14 +202,14 @@ namespace AndanteTribe.Unity.Extensions
         /// </summary>
         public void Clear()
         {
-            foreach (var handle in _handles)
+            foreach (var (handle, value) in _handleReferenceCounts)
             {
-                if (handle.IsValid())
+                for (var i = 0; i < value && handle.IsValid(); i++)
                 {
                     Addressables.Release(handle);
                 }
             }
-            _handles.Clear();
+            _handleReferenceCounts.Clear();
         }
 
         /// <inheritdoc/>

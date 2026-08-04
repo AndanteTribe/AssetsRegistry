@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.ResourceManagement.ResourceLocations;
 using UnityEngine.ResourceManagement.ResourceProviders;
 using Object = UnityEngine.Object;
@@ -10,17 +12,34 @@ namespace AndanteTribe.Unity.Extensions.Tests
 {
     internal sealed class InMemoryAssetProvider : ResourceProviderBase
     {
+        private static readonly FieldInfo s_internalOperationField =
+            typeof(ProvideHandle).GetField("m_InternalOp", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new MissingFieldException(typeof(ProvideHandle).FullName, "m_InternalOp");
+
         private readonly IReadOnlyDictionary<string, Object> _assets;
 
         public InMemoryAssetProvider(IReadOnlyDictionary<string, Object> assets) => _assets = assets;
 
         public Action? AfterProvide { get; set; }
 
+        public int DestroyedOperationCount { get; private set; }
+
         public override Type GetDefaultType(IResourceLocation location) => location.ResourceType;
 
         public override bool CanProvide(Type type, IResourceLocation location) => typeof(Object).IsAssignableFrom(type);
 
-        public override void Provide(ProvideHandle provideHandle) => CompleteAsync(provideHandle).Forget();
+        public override void Provide(ProvideHandle provideHandle)
+        {
+            var internalOperation = s_internalOperationField.GetValue(provideHandle);
+            var operationHandle = (AsyncOperationHandle)Activator.CreateInstance(
+                typeof(AsyncOperationHandle),
+                BindingFlags.Instance | BindingFlags.NonPublic,
+                binder: null,
+                args: new[] { internalOperation },
+                culture: null);
+            operationHandle.Destroyed += _ => DestroyedOperationCount++;
+            CompleteAsync(provideHandle).Forget();
+        }
 
         private async UniTaskVoid CompleteAsync(ProvideHandle provideHandle)
         {
