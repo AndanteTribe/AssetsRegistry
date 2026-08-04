@@ -10,6 +10,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.AddressableAssets.ResourceLocators;
+using UnityEngine.ResourceManagement;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.ResourceManagement.ResourceLocations;
 using UnityEngine.ResourceManagement.Util;
@@ -25,6 +26,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
     {
         private const string PrefabAddress = "assets-registry-tests-prefab";
         private const string MaterialAddress = "assets-registry-tests-material";
+        private const string MissingAssetAddress = "assets-registry-tests-missing";
         private const string PrefabGuid = "04cce3e98f1db5e408101d3af39d20e0";
         private const string MaterialGuid = "c1babf113d370ee468b258214dbf3b4d";
 
@@ -59,11 +61,12 @@ namespace AndanteTribe.Unity.Extensions.Tests
             });
             Addressables.ResourceManager.ResourceProviders.Add(_provider);
 
-            _locator = new ResourceLocationMap("AssetsRegistryTests", capacity: 4);
+            _locator = new ResourceLocationMap("AssetsRegistryTests", capacity: 5);
             AddLocation(PrefabAddress, _prefab);
             AddLocation(PrefabGuid, _prefab);
             AddLocation(MaterialAddress, _material);
             AddLocation(MaterialGuid, _material);
+            AddLocation(MissingAssetAddress, typeof(GameObject));
             Addressables.AddResourceLocator(_locator);
         }
 
@@ -87,7 +90,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         }
 
         [UnityTest]
-        public IEnumerator LoadAsync_WithStringAddress_LoadsGameObject() => UniTask.ToCoroutine(async () =>
+        public IEnumerator LoadAsyncWithStringAddressLoadsGameObject() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -102,7 +105,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator LoadAsync_WithStringAddress_LoadsMaterial() => UniTask.ToCoroutine(async () =>
+        public IEnumerator LoadAsyncWithStringAddressLoadsMaterial() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -117,7 +120,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator LoadAsync_WithAssetReference_LoadsGameObject() => UniTask.ToCoroutine(async () =>
+        public IEnumerator LoadAsyncWithAssetReferenceLoadsGameObject() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -133,7 +136,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator InstantiateAsync_WithStringAddress_InstantiatesWithComponent() => UniTask.ToCoroutine(async () =>
+        public IEnumerator InstantiateAsyncWithStringAddressInstantiatesWithComponent() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -160,7 +163,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator InstantiateAsync_WithAssetReference_InstantiatesWithComponent() => UniTask.ToCoroutine(async () =>
+        public IEnumerator InstantiateAsyncWithAssetReferenceInstantiatesWithComponent() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -188,7 +191,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator InstantiateAsync_WithAssetReferenceAndMissingComponent_ThrowsInvalidOperationException() => UniTask.ToCoroutine(async () =>
+        public IEnumerator InstantiateAsyncWithAssetReferenceAndMissingComponentThrowsInvalidOperationException() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -217,7 +220,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator InstantiateAsync_WithMissingComponent_ThrowsInvalidOperationException() => UniTask.ToCoroutine(async () =>
+        public IEnumerator InstantiateAsyncWithMissingComponentThrowsInvalidOperationException() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -249,7 +252,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator LoadAsync_MultipleCalls_IncreasesCount() => UniTask.ToCoroutine(async () =>
+        public IEnumerator LoadAsyncMultipleCallsIncreasesCount() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -263,7 +266,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator LoadAsync_WithCancellation_ThrowsOperationCanceledException() => UniTask.ToCoroutine(async () =>
+        public IEnumerator LoadAsyncWithCancellationThrowsOperationCanceledException() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -284,7 +287,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator LoadAsync_WithCancellation_ReleasesHandle() => UniTask.ToCoroutine(async () =>
+        public IEnumerator LoadAsyncWithCancellationReleasesHandle() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -305,7 +308,42 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator InstantiateAsync_WithCancellation_ThrowsOperationCanceledException() => UniTask.ToCoroutine(async () =>
+        public IEnumerator LoadAsyncWithProviderFailureReleasesHandle() => UniTask.ToCoroutine(async () =>
+        {
+            // Arrange
+            var cts = new CancellationTokenSource();
+            var destroyedOperationCount = _provider.DestroyedOperationCount;
+            var originalExceptionHandler = ResourceManager.ExceptionHandler;
+            ResourceManager.ExceptionHandler = (_, _) => { };
+
+            try
+            {
+                // Act
+                var exceptionThrown = false;
+                try
+                {
+                    await _registry.LoadAsync<GameObject>(MissingAssetAddress, cts.Token);
+                }
+                catch (InvalidOperationException)
+                {
+                    exceptionThrown = true;
+                }
+
+                await UniTask.Yield();
+
+                // Assert
+                Assert.That(exceptionThrown, Is.True, "Expected InvalidOperationException was not thrown");
+                Assert.That(_registry.Count, Is.EqualTo(0));
+                Assert.That(_provider.DestroyedOperationCount, Is.EqualTo(destroyedOperationCount + 1));
+            }
+            finally
+            {
+                ResourceManager.ExceptionHandler = originalExceptionHandler;
+            }
+        });
+
+        [UnityTest]
+        public IEnumerator InstantiateAsyncWithCancellationThrowsOperationCanceledException() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -334,7 +372,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator InstantiateAsync_WithCancellation_ReleasesHandle() => UniTask.ToCoroutine(async () =>
+        public IEnumerator InstantiateAsyncWithCancellationReleasesHandle() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -363,7 +401,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator InstantiateAsync_WithStringAddressAndCancellationAfterLoad_ReleasesHandle() => UniTask.ToCoroutine(async () =>
+        public IEnumerator InstantiateAsyncWithStringAddressAndCancellationAfterLoadReleasesHandle() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -393,7 +431,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator InstantiateAsync_WithAssetReferenceAndCancellationAfterLoad_ReleasesHandle() => UniTask.ToCoroutine(async () =>
+        public IEnumerator InstantiateAsyncWithAssetReferenceAndCancellationAfterLoadReleasesHandle() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -423,7 +461,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator Clear_ReleasesAllHandles() => UniTask.ToCoroutine(async () =>
+        public IEnumerator ClearReleasesAllHandles() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -439,7 +477,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator Dispose_ReleasesAllHandles() => UniTask.ToCoroutine(async () =>
+        public IEnumerator DisposeReleasesAllHandles() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -455,7 +493,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator Count_InitiallyZero() => UniTask.ToCoroutine(async () =>
+        public IEnumerator CountInitiallyZero() => UniTask.ToCoroutine(async () =>
         {
             // Assert
             Assert.That(_registry.Count, Is.EqualTo(0));
@@ -463,10 +501,11 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator LoadAsync_SameAssetMultipleTimes_CreatesMultipleHandles() => UniTask.ToCoroutine(async () =>
+        public IEnumerator LoadAsyncSameAssetMultipleTimesReleasesAllReferences() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
+            var destroyedOperationCount = _provider.DestroyedOperationCount;
 
             // Act
             var obj1 = await _registry.LoadAsync<GameObject>(PrefabAddress, cts.Token);
@@ -476,13 +515,19 @@ namespace AndanteTribe.Unity.Extensions.Tests
             Assert.That(obj1, Is.Not.Null);
             Assert.That(obj2, Is.Not.Null);
             Assert.That(obj1, Is.SameAs(obj2)); // Same asset instance
-            // Note: Addressables caches handles internally, so multiple loads of the same asset
-            // return only one handle per Addressables loading session
             Assert.That(_registry.Count, Is.EqualTo(1));
+
+            // Act
+            _registry.Clear();
+            await UniTask.Yield();
+
+            // Assert
+            Assert.That(_registry.Count, Is.EqualTo(0));
+            Assert.That(_provider.DestroyedOperationCount, Is.EqualTo(destroyedOperationCount + 1));
         });
 
         [UnityTest]
-        public IEnumerator InstantiateAsync_CreatesIndependentInstances() => UniTask.ToCoroutine(async () =>
+        public IEnumerator InstantiateAsyncCreatesIndependentInstances() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -514,7 +559,7 @@ namespace AndanteTribe.Unity.Extensions.Tests
         });
 
         [UnityTest]
-        public IEnumerator Clear_CanLoadAssetsAgainAfterClearing() => UniTask.ToCoroutine(async () =>
+        public IEnumerator ClearCanLoadAssetsAgainAfterClearing() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             var cts = new CancellationTokenSource();
@@ -531,7 +576,12 @@ namespace AndanteTribe.Unity.Extensions.Tests
 
         private void AddLocation(string key, Object asset)
         {
-            _locator.Add(key, new ResourceLocationBase(key, key, _provider.ProviderId, asset.GetType()));
+            AddLocation(key, asset.GetType());
+        }
+
+        private void AddLocation(string key, Type resourceType)
+        {
+            _locator.Add(key, new ResourceLocationBase(key, key, _provider.ProviderId, resourceType));
         }
 
         private static (FieldInfo InstanceField, object? OriginalInstance) PrepareAddressablesForDirectLocatorUse()
