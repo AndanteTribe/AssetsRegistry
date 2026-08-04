@@ -202,9 +202,9 @@ namespace AndanteTribe.Unity.Extensions
         /// </summary>
         public void Clear()
         {
-            foreach (var (handle, value) in _handleReferenceCounts)
+            foreach (var (handle, refCount) in _handleReferenceCounts)
             {
-                for (var i = 0; i < value && handle.IsValid(); i++)
+                for (var i = 0; i < refCount && handle.IsValid(); i++)
                 {
                     Addressables.Release(handle);
                 }
