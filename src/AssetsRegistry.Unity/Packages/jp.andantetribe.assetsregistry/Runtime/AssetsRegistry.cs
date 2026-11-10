@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -53,7 +54,11 @@ namespace AndanteTribe.Unity.Extensions
         /// <summary>
         /// The number of Addressables handles owned by this registry.
         /// </summary>
-        public int Count => _handleReferenceCounts.Count;
+        public int Count
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _handleReferenceCounts.Count;
+        }
 
         /// <summary>
         /// Load an asset asynchronously.
@@ -213,6 +218,7 @@ namespace AndanteTribe.Unity.Extensions
         }
 
         /// <inheritdoc/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Dispose() => Clear();
     }
 }
